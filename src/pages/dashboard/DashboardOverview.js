@@ -251,14 +251,14 @@ export default () => {
         <Col xs={12}>
           <Card>
             <Card.Header>
-              <h5>Todos los Dispositivos</h5>
+              <h5>Listado de los Dispositivos</h5>
             </Card.Header>
             <Card.Body>
               <div className="table-responsive">
                 <table className="table table-hover">
                   <thead>
                     <tr>
-                      <th>Dispositivo</th>
+                      <th>Dispositivos</th>
                       <th>Ubicación</th>
                     </tr>
                   </thead>

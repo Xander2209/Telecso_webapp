@@ -260,10 +260,6 @@ export default () => {
                     <tr>
                       <th>Dispositivo</th>
                       <th>Ubicación</th>
-                      <th>Temperatura</th>
-                      <th>Humedad</th>
-                      <th>Estado Puerta</th>
-                      <th>Última Actualización</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -276,14 +272,6 @@ export default () => {
                       >
                         <td>{device.deviceName}</td>
                         <td>{device.location}</td>
-                        <td>{currentData.temperatura?.toFixed(1)}°C</td>
-                        <td>{currentData.humedad?.toFixed(1)}%</td>
-                        <td>
-                          <span className={`badge bg-${currentData.puerta === 1 ? 'danger' : 'success'}`}>
-                            {currentData.puerta === 1 ? 'Abierta' : 'Cerrada'}
-                          </span>
-                        </td>
-                        <td>{new Date(device.lastUpdate).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

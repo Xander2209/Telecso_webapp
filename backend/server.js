@@ -34,6 +34,14 @@ app.post('/api/sensors', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.get('/', async (req, res) => {
+  try {
+    res.status(404).json({message: 'Esta pagina no esta disponible.'})
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+
+})
 
 // Obtener lista de dispositivos únicos
 app.get('/api/devices', async (req, res) => {
@@ -78,19 +86,3 @@ app.get('/api/sensors/:deviceId/history', async (req, res) => {
 app.listen(3001, () => {
   console.log('Servidor corriendo en puerto 3001');
 });
-
-
-
-/*{
-  "_id": "dispositivo001202412"
-  "dispositivoId": "dispositivo001",
-  "mes": "2024-12",
-  "lecturas": [
-    {
-      "fecha": "2024-12-01T00:00:00Z",
-      "temperatura": 25.5,
-      "humedad": 60.2
-    },
-    // más lecturas...
-  ]
-}*/

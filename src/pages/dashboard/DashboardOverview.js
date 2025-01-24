@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { faThermometerHalf, faTint, faMicrochip, faDoorOpen } from '@fortawesome/free-solid-svg-icons';
+import { faThermometerHalf, faTint, faDoorOpen } from '@fortawesome/free-solid-svg-icons';
 import { Col, Row, Card, Dropdown } from '@themesberg/react-bootstrap';
 import { CounterWidget } from "../../components/Widgets";
 import { Line } from 'react-chartjs-2';
@@ -39,13 +39,15 @@ export default () => {
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [currentData, setCurrentData] = useState({});
-  const [historicData, setHistoricData] = useState([]);
+  const [historicData, setHistoricData] = useState({});
 
   // Obtener lista de dispositivos
   const fetchDevices = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/devices');
+      const response = await fetch('http://sense.telecso.co:3001/api/devices');
       const data = await response.json();
+      // Ordenar dispositivos alfabéticamente por nombre
+      data.sort((a, b) => a.deviceName.localeCompare(b.deviceName));
       setDevices(data);
       if (data.length > 0 && !selectedDevice) {
         setSelectedDevice(data[0]._id);
@@ -55,22 +57,37 @@ export default () => {
     }
   };
 
-  // Obtener datos del dispositivo seleccionado
-  const fetchDeviceData = async () => {
-    if (!selectedDevice) return;
-
+  // Obtener datos de todos los dispositivos
+  const fetchAllDeviceData = async () => {
     try {
-      // Datos actuales
-      const currentResponse = await fetch(`http://localhost:3001/api/sensors/${selectedDevice}/latest`);
-      const currentResult = await currentResponse.json();
-      setCurrentData(currentResult);
+      const promises = devices.map(device => 
+        fetch(`http://sense.telecso.co:3001/api/sensors/${device._id}/latest`)
+          .then(response => response.json())
+          .then(data => {
+            setCurrentData(prevData => ({ ...prevData, [device._id]: data }));
+          })
+      );
 
-      // Histórico
-      const historicResponse = await fetch(`http://localhost:3001/api/sensors/${selectedDevice}/history`);
-      const historicResult = await historicResponse.json();
-      setHistoricData(historicResult);
+      await Promise.all(promises);
     } catch (error) {
-      console.error("Error al obtener datos:", error);
+      console.error("Error al obtener datos de dispositivos:", error);
+    }
+  };
+
+  // Obtener histórico de todos los dispositivos
+  const fetchAllHistoricData = async () => {
+    try {
+      const promises = devices.map(device => 
+        fetch(`http://sense.telecso.co:3001/api/sensors/${device._id}/history`)
+          .then(response => response.json())
+          .then(data => {
+            setHistoricData(prevData => ({ ...prevData, [device._id]: data }));
+          })
+      );
+
+      await Promise.all(promises);
+    } catch (error) {
+      console.error("Error al obtener datos históricos de dispositivos:", error);
     }
   };
 
@@ -81,12 +98,16 @@ export default () => {
   }, []);
 
   useEffect(() => {
-    if (selectedDevice) {
-      fetchDeviceData();
-      const interval = setInterval(fetchDeviceData, 5000);
+    if (devices.length > 0) {
+      fetchAllDeviceData();
+      fetchAllHistoricData();
+      const interval = setInterval(() => {
+        fetchAllDeviceData();
+        fetchAllHistoricData();
+      }, 5000);
       return () => clearInterval(interval);
     }
-  }, [selectedDevice]);
+  }, [devices]);
 
   // Configuración de las gráficas
   const chartOptions = {
@@ -104,11 +125,11 @@ export default () => {
   };
 
   const temperatureData = {
-    labels: historicData.map(data => formatDateTime(data.timestamp)),
+    labels: historicData[selectedDevice]?.map(data => formatDateTime(data.timestamp)) || [],
     datasets: [
       {
         label: 'Temperatura (°C)',
-        data: historicData.map(data => data.temperatura),
+        data: historicData[selectedDevice]?.map(data => data.temperatura) || [],
         borderColor: 'rgb(255, 99, 132)',
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
         tension: 0.4
@@ -117,11 +138,11 @@ export default () => {
   };
 
   const humidityData = {
-    labels: historicData.map(data => formatDateTime(data.timestamp)),
+    labels: historicData[selectedDevice]?.map(data => formatDateTime(data.timestamp)) || [],
     datasets: [
       {
         label: 'Humedad (%)',
-        data: historicData.map(data => data.humedad),
+        data: historicData[selectedDevice]?.map(data => data.humedad) || [],
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
         tension: 0.4
@@ -163,8 +184,8 @@ export default () => {
             <Col xs={12} sm={6} xl={4} className="mb-4">
               <CounterWidget
                 category="Temperatura"
-                title={`${currentData.temperatura?.toFixed(1)} °C`}
-                period={new Date(currentData.timestamp).toLocaleString()}
+                title={`${currentData[selectedDevice]?.temperatura?.toFixed(1) || 'N/A'} °C`}
+                period={new Date(currentData[selectedDevice]?.timestamp).toLocaleString() || 'N/A'}
                 icon={faThermometerHalf}
                 iconColor="shape-secondary"
               />
@@ -172,8 +193,8 @@ export default () => {
             <Col xs={12} sm={6} xl={4} className="mb-4">
               <CounterWidget
                 category="Humedad"
-                title={`${currentData.humedad?.toFixed(1)}%`}
-                period={new Date(currentData.timestamp).toLocaleString()}
+                title={`${currentData[selectedDevice]?.humedad?.toFixed(1) || 'N/A'}%`}
+                period={new Date(currentData[selectedDevice]?.timestamp).toLocaleString() || 'N/A'}
                 icon={faTint}
                 iconColor="shape-tertiary"
               />
@@ -181,10 +202,10 @@ export default () => {
             <Col xs={12} sm={6} xl={4} className="mb-4">
               <CounterWidget
                 category="Estado Puerta"
-                title={currentData.puerta === 1 ? "Abierta" : "Cerrada"}
-                period={new Date(currentData.timestamp).toLocaleString()}
+                title={currentData[selectedDevice]?.puerta === 1 ? "Abierta" : "Cerrada"}
+                period={new Date(currentData[selectedDevice]?.timestamp).toLocaleString() || 'N/A'}
                 icon={faDoorOpen}
-                iconColor={currentData.puerta === 1 ? "shape-danger" : "shape-success"}
+                iconColor={currentData[selectedDevice]?.puerta === 1 ? "shape-danger" : "shape-success"}
               />
             </Col>
           </Row>
@@ -230,7 +251,7 @@ export default () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {historicData.map((data, index) => (
+                        {historicData[selectedDevice]?.map((data, index) => (
                           <tr key={index}>
                             <td>{new Date(data.timestamp).toLocaleString()}</td>
                             <td>{data.temperatura}°C</td>
@@ -251,15 +272,19 @@ export default () => {
         <Col xs={12}>
           <Card>
             <Card.Header>
-              <h5>Listado de los Dispositivos</h5>
+              <h5>Todos los Dispositivos</h5>
             </Card.Header>
             <Card.Body>
               <div className="table-responsive">
                 <table className="table table-hover">
                   <thead>
                     <tr>
-                      <th>Dispositivos</th>
+                      <th>Dispositivo</th>
                       <th>Ubicación</th>
+                      <th>Temperatura</th>
+                      <th>Humedad</th>
+                      <th>Puerta</th>
+                      <th>Última Actualización</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -272,6 +297,12 @@ export default () => {
                       >
                         <td>{device.deviceName}</td>
                         <td>{device.location}</td>
+                        <td>{currentData[device._id]?.temperatura?.toFixed(1) || 'N/A'}°C</td>
+                        <td>{currentData[device._id]?.humedad?.toFixed(1) || 'N/A'}%</td>
+                        <td>
+                          {currentData[device._id]?.puerta === 1 ? 'Abierta' : 'Cerrada'}
+                        </td>
+                        <td>{new Date(device.lastUpdate).toLocaleString() || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
